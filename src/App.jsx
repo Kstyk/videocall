@@ -71,7 +71,7 @@ function App() {
     setAudioEnabled(!audioEnabled);
     const audioTracks = currentUserVideRef.current.srcObject.getAudioTracks();
     audioTracks.forEach((track) => {
-      track.enabled = audioEnabled;
+      track.enabled = !track.enabled;
     });
   };
 
