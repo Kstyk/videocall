@@ -14,6 +14,8 @@ function App() {
   const currentUserVideRef = useRef(null);
 
   useEffect(() => {
+    console.log("ur peer id: " + peerId);
+    console.log("remote peer id: " + remotePeerIdValue);
     const peer = new Peer();
 
     peer.on("open", (id) => {
@@ -21,6 +23,10 @@ function App() {
     });
 
     peer.on("call", (call) => {
+      if (call.metadata && call.metadata.callerPeerId != null) {
+        setRemotePeerIdValue(call.metadata.callerPeerId);
+      }
+
       var getUserMedia =
         navigator.getUserMedia ||
         navigator.webkitGetUserMedia ||
@@ -28,12 +34,15 @@ function App() {
 
       getUserMedia({ video: true, audio: true }, (mediaStream) => {
         currentUserVideRef.current.srcObject = mediaStream;
-        currentUserVideRef.current.play();
-
+        currentUserVideRef.current.onloadedmetadata = () => {
+          currentUserVideRef.current.play();
+        };
         call.answer(mediaStream);
         call.on("stream", (remoteStream) => {
           remoteVideoRef.current.srcObject = remoteStream;
-          remoteVideoRef.current.play();
+          remoteVideoRef.current.onloadedmetadata = () => {
+            remoteVideoRef.current.play();
+          };
         });
       });
     });
@@ -42,6 +51,9 @@ function App() {
   }, []);
 
   const call = (remotePeerID) => {
+    console.log("ur peer id: " + peerId);
+    console.log("remote peer id: " + remotePeerID);
+
     var getUserMedia =
       navigator.getUserMedia ||
       navigator.webkitGetUserMedia ||
@@ -49,14 +61,23 @@ function App() {
 
     getUserMedia({ video: true, audio: true }, (mediaStream) => {
       currentUserVideRef.current.srcObject = mediaStream;
-      currentUserVideRef.current.play();
+      currentUserVideRef.current.onloadedmetadata = () => {
+        currentUserVideRef.current.play();
+      };
 
-      const call = peerInstance.current.call(remotePeerID, mediaStream);
+      const call = peerInstance.current.call(remotePeerID, mediaStream, {
+        metadata: {
+          callerPeerId: peerId,
+        },
+      });
       call.on(
         "stream",
         (remoteStream) => {
           remoteVideoRef.current.srcObject = remoteStream;
-          remoteVideoRef.current.play();
+          remoteVideoRef.current.onloadedmetadata = () => {
+            remoteVideoRef.current.play();
+          };
+          console.log("metadata:", call.metadata); // wyświetlenie obiektu metadata w konsoli
         },
         function (err) {
           console.log("Failed to get local stream", err);
@@ -64,8 +85,6 @@ function App() {
       );
     });
   };
-
-  console.log(peerId);
 
   const toggleAudio = () => {
     setAudioEnabled(!audioEnabled);
@@ -88,6 +107,7 @@ function App() {
   const toggleScreenSharing = async () => {
     try {
       if (!isScreenSharing) {
+        console.log("remote peer id in sharing: " + remotePeerIdValue);
         const stream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
         });
@@ -95,6 +115,7 @@ function App() {
         currentUserVideRef.current.play();
 
         const call = peerInstance.current.call(remotePeerIdValue, stream);
+
         call.on("stream", (remoteStream) => {
           remoteVideoRef.current.srcObject = remoteStream;
           remoteVideoRef.current.play();
@@ -145,10 +166,10 @@ function App() {
         </button>
       </>
       <div>
-        <video ref={remoteVideoRef} />
+        <video preload="none" ref={remoteVideoRef} />
       </div>
       <div>
-        <video ref={currentUserVideRef} />
+        <video preload="none" ref={currentUserVideRef} />
       </div>
     </div>
   );
